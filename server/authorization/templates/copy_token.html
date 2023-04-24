@@ -1,0 +1,5 @@
+<a href="#" id="{{id}}">Copy access token</a>
+<script>
+    const link = getElementById('{{id}}');
+    link.addEventListener('click', () => navigator.clipboard.writeText('{{token}}'));
+</script>

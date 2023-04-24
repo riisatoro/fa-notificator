@@ -1,0 +1,74 @@
+version: '3.7'
+
+services:
+  
+  bot:
+    build: ./bot
+    command: python main.py
+    volumes:
+      - ./bot:/app
+    links:
+      - consumer
+    depends_on:
+      consumer:
+        condition: service_healthy
+
+  consumer:
+    image: rabbitmq:3-management-alpine
+    ports:
+        - 5672:5672
+        - 15672:15672
+    volumes:
+        - ./data/rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build: ./server
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./server:/app
+    env_file:
+      - ./server/.env
+    ports:
+      - 8000:8000
+
+  web-consumer:
+    build: ./server
+    command: python manage.py runconsumer
+    volumes:
+      - ./server:/app
+    env_file:
+      - ./server/.env
+    ports:
+      - 30000:60000
+    depends_on:
+      consumer:
+        condition: service_healthy
+
+
+  # worker:
+  #   build:
+  #     context: ./workers
+  #     dockerfile: Dockerfile.worker
+  #   volumes:
+  #     - ./workers:/app
+
+  memdb:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - 6379:6379
+    command: redis-server --save 20
+    volumes: 
+      - ./data/redis:/data
+
+  beat:
+    build:
+      context: ./workers
+      dockerfile: Dockerfile.beat
+    volumes:
+      - ./workers:/app
